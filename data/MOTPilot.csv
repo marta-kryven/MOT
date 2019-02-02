@@ -1,0 +1,22 @@
+subject	stable	correct_stable	unstable	correct_unstable	velocity	age	gender	background	runsmoothly	experimenter comment	exclude
+S58731035	0.33	5	0.33	5	3.58	23	F	They were different office backgrounds.	yes	exclude the ones who are below 0.5 accuracy	0
+S60110788	0.33	5	0.4	6	5.24	33	F	nothing really. i think the second one was a computer on a desk. the first was trees?	yes	exclude the ones who are below 0.5 accuracy	0
+S13655916	0.4	6	0.33	5	3.58	31	M	nothing in particular	yes	exclude the ones who are below 0.5 accuracy	0
+S12685911	0.47	7	0.53	8	1.49	36	F	none	yes	exclude the ones who are below 0.5 accuracy	0
+S16869289	0.47	7	0.4	6	1.18	22	M	nothing	yes	exclude the ones who are below 0.5 accuracy	0
+S4798909	0.53	8	0.4	6	2.72	59	M	they switched occasionally; but I was not really looking at them	yes	ok	0
+S64033461	0.53	8	0.53	8	4.45	46	M	Not much, the classroom kept changing but I'm sure I missed something obvious.	yes	ok	0
+S15138528	0.67	10	0.27	4	1.41	23	M	not sure	yes	ok	0
+S17035374	0.67	10	0.53	8	4.5	44	F	I only noticed that one was an outdoor scene with a lake and a mountain, and the other was a computer screen on a desk in an office.	yes	ok	0
+S15943894	0.73	11	0.8	12	1.83	61	F	I tried to keep my eyes on the targets, so I didn't really notice the backgrounds very much. I did feel that it was a little more difficult to focus when the screen was shown on a laptop.	ys	ok	0
+S88943506	0.73	11	0.47	7	4.19	43	M	One was outside and was inside?  Thanks for the HIT!  I did my best and hope the data is useful!	yes	ok	0
+S29539240	0.8	12	0.67	10	1.86	35	M	the first one was soothing, the last ones were just an office setting	yes	ok	0
+S94954176	0.8	12	0.53	8	2.14	38	M	The second one there was a larger area of solid color.	yes	ok	0
+S10281237	0.87	13	0.73	11	1.99	30	M	No	yes	ok	0
+S87036985	0.87	13	0.67	10	2.43	24	M	The background was changing position I guess.	yes	ok	0
+S88130752	0.93	14	0.73	11	1.37	39	M	some clutter changed	yes but in the first round sometimes only 3 lit up but it asked for 4 to identify	ok	0
+S99639330	0.93	14	0.8	12	2.43	58	F	the second one was a laptop. I honestly don't remember what the first was.	yes	ok	0
+S27771475	1	15	0.87	13	1.86	28	M	Not really, I paid very close attention to only the white dots.	yes	ok	0
+S35030898	1	15	0.73	11	2.04	34	M	lake, trees, blackboard, wooden desk, printer	yes	ok	0
+S86212935	1	15	0.93	14	1.57	30	M	some room or something. lots of wood	yes	ok	0
+S39508919	0.67	10	0.8	12	3.49	61	M	Laptop on a table and a book shelf in back right?	Acouple toward the end flashed my whole screen in black backgound then went to the laptop background while the dots were flashing. It distracted me.	exclude, technical problems	1
