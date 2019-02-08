@@ -383,6 +383,51 @@ if (length(lousy$subject) > 0) {
   }
 }
 
+#-------------------------------------------------------------------------------------------
+#
+# Removing Participants Based on Percentile
+#
+#-------------------------------------------------------------------------------------------
+
+#d <- data for testing
+#dem <- demo
+#d = subset(data, data$date == "30/January/2019") if checking subsets
+
+avgdata <-aggregate(data, by=list(data$subject, data$condition), FUN = function(x) c(mean = mean(x) ))
+avgdata <- avgdata[ c(1, 2, 7) ] # the columns we're interested in
+
+perc_rank = mutate(avgdata,percentile_rank = ntile(avgdata$numcorrect, 100));# assigns percentile scores to each average
+
+percent_cap = quantile(avgdata$numcorrect, probs = 0.95); # returns the score correlating to the 95th percentile
+percent_cap_low = quantile(avgdata$numcorrect, probs = c(0.05)); # returns the score correlating to the 5th percentile
+
+tooGood = subset(avgdata, avgdata$numcorrect > percent_cap); # list of subjects whose scores in either condition are above the 95th percentile
+tooBad = subset(avgdata, avgdata$numcorrect < percent_cap_low); #list of subjects whose scores in either condition are below the 5th percentile
+
+## removing from the data set
+for (i in 1: length(tooGood$Group.1)) {
+    cat("removing participants above 95th percentile ", as.character(tooGood$Group.1[i]),"\n");
+    data = subset(data, data$subject != tooGood$Group.1[i]);
+    demo = subset(demo, demo$subject != tooGood$Group.1[i]);
+}
+
+for (i in 1: length(tooBad$Group.1)) {
+    cat("removing participants below 5th percentile ", as.character(tooBad$Group.1[i]));
+    data = subset(data, data$subject != tooBad$Group.1[i]);
+    demo = subset(demo, demo$subject != tooBad$Group.1[i]);
+}
+
+## removing from the averages data set
+for (i in 1: length(tooGood$Group.1)) {
+  cat("removing participants above 95th percentile (avgData)", as.character(tooGood$Group.1[i]),"\n");
+  avgdata = subset(avgdata, avgdata$Group.1 != tooGood$Group.1[i]);
+}
+
+for (i in 1: length(tooBad$Group.1)) {
+  cat("removing participants above 95th percentile (avgData) ", as.character(tooBad$Group.1[i]),"\n");
+  avgdata = subset(avgdata, avgdata$Group.1 != tooBad$Group.1[i]);
+}
+
 
 
 
@@ -419,6 +464,12 @@ p = prop.test( c(sum(demo$numstable), sum(demo$numunstable)), c( num*18, num*18)
      
 power.prop.test(n=NULL, p1 = p$estimate[1], p2 = p$estimate[2], sig.level = 0.05, power = 0.8   )  #  Proportions for accuracy in the stable and unstable condition
 
+## effect for avg num of targets clicked?
+
+acc_stable = subset(avgdata, avgdata$Group.2 == "stable");
+acc_unstable = subset(avgdata, avgdata$Group.2 == "unstable");
+
+t = t.test(acc_stable$numcorrect, acc_unstable$numcorrect, paired=TRUE); 
 
 #--------------------------------------------------------------------------------------------------------
 #
