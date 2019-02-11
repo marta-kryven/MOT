@@ -1,7 +1,7 @@
 library(ggplot2);
 library(pwr);
 library(Hmisc);                       # includes rcorr
-
+library(dplyr);
 
 #--------------------------------------------------------------------------------------------------------
 #
@@ -22,7 +22,7 @@ minimal_rt_cutoff = 550;               #  RT cutoff - this gets rid of subjects 
 #---------------------------------------------------------------------------------------------------------------------------
 
 
-main_path = '/Users/luckyfish/Desktop/MOT/MOTJan9/';    # Make sure you have the correct path
+main_path = '/Users/luckyfish/Desktop/MOT/MOTReplications/data/';    # Make sure you have the correct path
 
 data11 = read.csv( paste(main_path, 'trialsJan11.csv', sep ='') , sep = "\t", strip.white=TRUE, header=TRUE);  
 demo11 = read.csv( paste(main_path, 'demoJan11.csv', sep ='') , sep = "\t", strip.white=TRUE, header=TRUE); 
@@ -385,7 +385,14 @@ if (length(lousy$subject) > 0) {
 
 #-------------------------------------------------------------------------------------------
 #
-# Removing Participants Based on Percentile
+#  Accuracy analysis based on object-based accuracy (number of objects selected correctly per trial)
+#
+#-------------------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------------------
+#
+#   Removing participants who are too close to celling (or chance) on their object-based accuracy measures
 #
 #-------------------------------------------------------------------------------------------
 
@@ -395,41 +402,43 @@ if (length(lousy$subject) > 0) {
 
 avgdata <-aggregate(data, by=list(data$subject, data$condition), FUN = function(x) c(mean = mean(x) ))
 avgdata <- avgdata[ c(1, 2, 7) ] # the columns we're interested in
+colnames(avgdata) <- c( "subject", "condition", "numcorrect");
 
-perc_rank = mutate(avgdata,percentile_rank = ntile(avgdata$numcorrect, 100));# assigns percentile scores to each average
+# MARTA: commented out, because, 
+# we want to remove folks who may be at celling, or at chance, not based on how good they are relating to other subjects, right?
+# perc_rank = mutate(avgdata, percentile_rank = ntile(avgdata$numcorrect, 100)); # assigns percentile scores to each average
+# percent_cap = quantile(avgdata$numcorrect, probs = 0.95); # returns the score correlating to the 95th percentile
+# percent_cap_low = quantile(avgdata$numcorrect, probs = c(0.05)); # returns the score correlating to the 5th percentile
+# tooGood = subset(avgdata, avgdata$numcorrect > percent_cap); # list of subjects whose scores in either condition are above the 95th percentile
+# tooBad = subset(avgdata, avgdata$numcorrect < percent_cap_low); #list of subjects whose scores in either condition are below the 5th percentile
 
-percent_cap = quantile(avgdata$numcorrect, probs = 0.95); # returns the score correlating to the 95th percentile
-percent_cap_low = quantile(avgdata$numcorrect, probs = c(0.05)); # returns the score correlating to the 5th percentile
-
-tooGood = subset(avgdata, avgdata$numcorrect > percent_cap); # list of subjects whose scores in either condition are above the 95th percentile
-tooBad = subset(avgdata, avgdata$numcorrect < percent_cap_low); #list of subjects whose scores in either condition are below the 5th percentile
-
-## removing from the data set
-for (i in 1: length(tooGood$Group.1)) {
-    cat("removing participants above 95th percentile ", as.character(tooGood$Group.1[i]),"\n");
-    data = subset(data, data$subject != tooGood$Group.1[i]);
-    demo = subset(demo, demo$subject != tooGood$Group.1[i]);
-}
-
-for (i in 1: length(tooBad$Group.1)) {
-    cat("removing participants below 5th percentile ", as.character(tooBad$Group.1[i]));
-    data = subset(data, data$subject != tooBad$Group.1[i]);
-    demo = subset(demo, demo$subject != tooBad$Group.1[i]);
-}
-
-## removing from the averages data set
-for (i in 1: length(tooGood$Group.1)) {
-  cat("removing participants above 95th percentile (avgData)", as.character(tooGood$Group.1[i]),"\n");
-  avgdata = subset(avgdata, avgdata$Group.1 != tooGood$Group.1[i]);
-}
-
-for (i in 1: length(tooBad$Group.1)) {
-  cat("removing participants above 95th percentile (avgData) ", as.character(tooBad$Group.1[i]),"\n");
-  avgdata = subset(avgdata, avgdata$Group.1 != tooBad$Group.1[i]);
-}
+avgdata$precentcorrect = avgdata$numcorrect/4; 
+tooGood = subset(avgdata, avgdata$precentcorrect > 0.9);
+tooBad =  subset(avgdata, avgdata$precentcorrect < 0.55);
 
 
+cat("Total subjects:", dim(avgdata)[1], " of which",  dim(tooGood)[1], " are above 90 percent accurate on object-based acuracy, and ", dim(tooBad)[1],  " below 55 percent accurate \n");
+demo = subset(demo, !( demo$subject %in% tooGood$subject) );
+demo = subset(demo, !( demo$subject %in% tooBad$subject) );
+data = subset(data, !( data$subject %in% tooGood$subject) );
+data = subset(data, !( data$subject %in% tooBad$subject) );
+avgdata = subset(avgdata, !( avgdata$subject %in% tooBad$subject) );
+avgdata = subset(avgdata, !( avgdata$subject %in% tooGood$subject) );
 
+#-------------------------------------------------------------------------------------------
+#
+#   apending object-based accuracy measures to demo
+#
+#-------------------------------------------------------------------------------------------
+
+
+objaccstable = subset(avgdata, avgdata$condition=="stable");
+colnames(objaccstable) <- c( "subject", "condition", "objcorrectstable", "objprecentstable");
+objaccunstable = subset(avgdata, avgdata$condition=="unstable");
+colnames(objaccunstable) <- c( "subject", "condition", "objcorrectunstable", "objprecentunstable");
+
+demo =  merge(demo, objaccstable[, c("subject", "objcorrectstable", "objprecentstable")], by  = "subject");
+demo =  merge(demo, objaccunstable[, c("subject", "objcorrectunstable", "objprecentunstable")], by  = "subject");
 
 ##--------------------------------------------------------------------------------------------------------
 ##--------------------------------------------------------------------------------------------------------
@@ -445,7 +454,7 @@ cat ( length(demo$subject), "subjects in the analysis");
 
 #--------------------------------------------------------------------------------------------------------
 #
-#   Is there an effect for all 36 trials? 
+#   Is there an effect for all 36 trials? - Trial-based measures
 #
 #--------------------------------------------------------------------------------------------------------
 
@@ -464,16 +473,34 @@ p = prop.test( c(sum(demo$numstable), sum(demo$numunstable)), c( num*18, num*18)
      
 power.prop.test(n=NULL, p1 = p$estimate[1], p2 = p$estimate[2], sig.level = 0.05, power = 0.8   )  #  Proportions for accuracy in the stable and unstable condition
 
-## effect for avg num of targets clicked?
+#--------------------------------------------------------------------------------------------------------
+#
+#   Is there an effect for all 36 trials? - Object-based measures
+#
+#--------------------------------------------------------------------------------------------------------
 
-acc_stable = subset(avgdata, avgdata$Group.2 == "stable");
-acc_unstable = subset(avgdata, avgdata$Group.2 == "unstable");
 
-t = t.test(acc_stable$numcorrect, acc_unstable$numcorrect, paired=TRUE); 
+t = t.test(demo$objcorrectstable, demo$objcorrectunstable, paired=TRUE); 
+power.t.test(delta=t$estimate, sd = sd(demo$objcorrectstable - demo$objcorrectunstable), sig.level=0.05, power = 0.8, type = "paired")  #  Power the t-test: how many subjects does it take?
+
+# now check by dates 
+demo1617 = subset(demo, demo$date == '17/January/2019' | demo$date == '16/January/2019')    # no difference
+t = t.test(demo1617$objcorrectstable, demo1617$objcorrectunstable, paired=TRUE); 
+t
+
+demo1421 = subset(demo, demo$date == '14/January/2019' | demo$date == '21/January/2019')    # 0.05
+t = t.test(demo1421$objcorrectstable, demo1421$objcorrectunstable, paired=TRUE); 
+t
+power.t.test(delta=t$estimate, sd = sd(demo1421$objcorrectstable - demo1421$objcorrectunstable), sig.level=0.05, power = 0.8, type = "paired")  
+
+demo142130 = subset(demo, demo$date == '14/January/2019' | demo$date == '21/January/2019' | demo$date == '30/January/2019' )    # 0.067, p-value = 0.1, df = 40, but n = 117
+t = t.test(demo142130$objcorrectstable, demo142130$objcorrectunstable, paired=TRUE); 
+t
+power.t.test(delta=t$estimate, sd = sd(demo142130$objcorrectstable - demo142130$objcorrectunstable), sig.level=0.05, power = 0.8, type = "paired")  
 
 #--------------------------------------------------------------------------------------------------------
 #
-#   is there an effect for the first 30 trials?
+#   is there an effect for the first 30 trials? Trial-based measures
 #
 #--------------------------------------------------------------------------------------------------------
 
@@ -497,6 +524,56 @@ power.t.test(delta=t$estimate, sd = sd(subset(aggdata$accuracy, aggdata$conditio
 
 #--------------------------------------------------------------------------------------------------------
 #
+#   is there an effect for the first 30 trials? Object-based measures
+#
+#--------------------------------------------------------------------------------------------------------
+
+n = 30;                                       
+d = subset(data, data$trial <= n);
+
+avgdata <-aggregate(d, by=list(d$subject, d$condition), FUN = function(x) c(mean = mean(x) ))
+avgdata <- avgdata[ c(1, 2, 7) ] # the columns we're interested in
+colnames(avgdata) <- c( "subject", "condition", "numcorrect");
+objaccstable = subset(avgdata, avgdata$condition=="stable");
+colnames(objaccstable) <- c( "subject", "condition", "objcorrectstable");
+objaccunstable = subset(avgdata, avgdata$condition=="unstable");
+colnames(objaccunstable) <- c( "subject", "condition", "objcorrectunstable");
+
+tempDemo =  merge(objaccstable, demo[, c("subject", "date")], by  = "subject");
+tempDemo =  merge(tempDemo, objaccunstable[, c("subject", "objcorrectunstable")], by  = "subject");
+
+t = t.test(tempDemo $objcorrectstable, tempDemo $objcorrectunstable, paired=TRUE); 
+power.t.test(delta=t$estimate, sd = sd(tempDemo $objcorrectstable - tempDemo $objcorrectunstable), sig.level=0.05, power = 0.8, type = "paired") 
+t
+
+
+# now check by dates 
+demo1617 = subset(tempDemo, tempDemo $date == '17/January/2019' | tempDemo $date == '16/January/2019')    # no difference
+t = t.test(demo1617$objcorrectstable, demo1617$objcorrectunstable, paired=TRUE); 
+t
+
+demo1421 = subset(tempDemo, tempDemo $date == '14/January/2019' | tempDemo$date == '21/January/2019')    # 0.075, p=.2
+t = t.test(demo1421$objcorrectstable, demo1421$objcorrectunstable, paired=TRUE); 
+t
+power.t.test(delta=t$estimate, sd = sd(demo1421$objcorrectstable - demo1421$objcorrectunstable), sig.level=0.05, power = 0.8, type = "paired")  
+
+
+#--------------------------------------------------------------------------------------------------------
+#
+#   This one is finally significant
+#
+#--------------------------------------------------------------------------------------------------------
+
+
+
+demo142130 = subset(tempDemo, tempDemo $date == '14/January/2019' | tempDemo $date == '21/January/2019' | tempDemo $date == '30/January/2019' )    # 0.098, p-value = 0.04, df = 40, but n = 49
+t = t.test(demo142130$objcorrectstable, demo142130$objcorrectunstable, paired=TRUE); 
+t
+power.t.test(delta=t$estimate, sd = sd(demo142130$objcorrectstable - demo142130$objcorrectunstable), sig.level=0.05, power = 0.8, type = "paired")  
+
+
+#--------------------------------------------------------------------------------------------------------
+#
 #   accuracy for each trial - are they getting better over time?
 #
 #--------------------------------------------------------------------------------------------------------
@@ -507,15 +584,13 @@ aggdata$accuracy = aggdata$acc[,1];
 aggdata$SE = aggdata$acc[,2];
 ggplot(aggdata, aes(x= trial, y = accuracy)) + geom_point() + geom_smooth(method = 'lm') + geom_errorbar(aes(ymin = accuracy-SE, ymax= accuracy + SE))
 
-
-
 res = lm(data= aggdata, accuracy ~ trial);      # linear model, is the regression line significant?
 summary(res);
 
 
 #--------------------------------------------------------------------------------------------------------
 #
-#   accuracy for each bin by condition
+#   accuracy for each bin by condition -- Trial based
 #
 #--------------------------------------------------------------------------------------------------------
 
@@ -541,6 +616,31 @@ summary(res);
 
 res = lm(data = aggdata, accuracy ~ bin + condition )
 TukeyHSD(aov(res))
+
+
+
+#--------------------------------------------------------------------------------------------------------
+#
+#   accuracy for each bin by condition -- Object based -- and only Jan 14, 21, 30 --- SEM overlap...
+#
+#--------------------------------------------------------------------------------------------------------
+
+data$bin = 5
+data$bin[which(data$trial <= 6 )] =  1;
+data$bin[which(data$trial > 30 )] =  6;
+data$bin[which(data$trial >= 7  & data$trial < 13 )] = 2;
+data$bin[which(data$trial >= 13  & data$trial < 19 )] = 3;
+data$bin[which(data$trial >= 19  & data$trial < 25 )] = 4;
+
+
+d = subset(data, data$date == '14/January/2019' | data$date == '21/January/2019' | data$date == '30/January/2019' )   
+
+avgdata <-aggregate(d$numcorrect, by=list(d$bin, d$condition), FUN = function(x) c(mean = mean(x), se = sd(x)/sqrt(length(x)) ))
+colnames(avgdata) <- c( "bin", "condition", "acc");
+avgdata$objaccuracy = avgdata $acc[,1];
+avgdata$SE = avgdata $acc[,2];
+ggplot(avgdata, aes(x= bin, y = objaccuracy, colour = condition)) + geom_point() + geom_errorbar(aes(ymin = objaccuracy-SE, ymax= objaccuracy +SE)) + geom_smooth(method = 'lm')
+
 
 #--------------------------------------------------------------------------------------------------------
 #
