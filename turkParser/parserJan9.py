@@ -16,15 +16,15 @@ def duration_min(start, end):
     f = float(e[0])*60*60*1000 + float(e[1])*60*1000 + float(e[2])
     return round(( f-s )/60/1000)
     
-main_path = '/Users/luckyfish/Desktop/MOT/MOTJan9/MOTJan30DifferentViews/'          # path to where all the logs are
+main_path = '/Users/luckyfish/Desktop/MOT/MOTReplications/TurkLogs/MOTFeb12/'          # path to where all the logs are
 logfiles = [f for f in listdir(main_path) if isfile(join(main_path, f))]      # list of all logs
 
-demof = open("/Users/luckyfish/Desktop/MOT/MOTJan9/MOTJan30demo.csv", "w")            # here will be demo.csv
+demof = open("/Users/luckyfish/Desktop/MOT/MOTReplications/MOTFeb12demo.csv", "w")            # here will be demo.csv
 demof.write("ip\tbrowser\tdate\tstart\tend\tsubject\tvelocity\taccstable\taccunstable\tnumstable\t")
 demof.write("numunstable\tage\tgender\tmonitor\twhattesting\thowwell\tstrategies\tbackground\tbkgdiff\tunstable\tproblems\tcalibw\tcalibh\tdurationMOT\tdurationExperiment\n")
 demof.flush()
 
-trialsf = open("/Users/luckyfish/Desktop/MOT/MOTJan9/MOTJan30data.csv", "w")        # here will be trials.csv
+trialsf = open("/Users/luckyfish/Desktop/MOT/MOTReplications/MOTFeb12data.csv", "w")        # here will be trials.csv
 trialsf.write("subject\ttrial\tcondition\tbkgid\tnumcorrect\trt1\trt2\trt3\trt4\n")
 trialsf.flush()
 
