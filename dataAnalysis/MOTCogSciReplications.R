@@ -59,7 +59,7 @@ demo21 = read.csv( paste(main_path, 'demoJan21.csv', sep ='') , sep = "\t", stri
 
 #---------------------------------------------------------------------------------------------------------------------------
 #
-#  Jan 30 uses three very different pairs of backgrounds, two of which are from the new set
+#  Using three very different pairs of backgrounds, two of which are from the new set
 #
 #---------------------------------------------------------------------------------------------------------------------------
 
@@ -67,105 +67,64 @@ demo21 = read.csv( paste(main_path, 'demoJan21.csv', sep ='') , sep = "\t", stri
 data30 = read.csv( paste(main_path, 'MOTJan30data.csv', sep ='') , sep = "\t", strip.white=TRUE, header=TRUE);  
 demo30 = read.csv( paste(main_path, 'MOTJan30demo.csv', sep ='') , sep = "\t", strip.white=TRUE, header=TRUE); 
 
+dataf21 = read.csv( paste(main_path, 'MOTFeb12data.csv', sep ='') , sep = "\t", strip.white=TRUE, header=TRUE);  
+demof21 = read.csv( paste(main_path, 'MOTFeb12demo.csv', sep ='') , sep = "\t", strip.white=TRUE, header=TRUE); 
+
 
 #---------------------------------------------------------------------------------------------------------------------------
 #
-#  We can merge all of them at this point and carry out the exclusions on all data at the same time
+#  We can merge all of them at this point and carry out postprocessing and exclusions on all data at the same time
 #
 #---------------------------------------------------------------------------------------------------------------------------
 
 
-data = rbind(data21, data14, data16, data17, data30);
-demo = rbind(demo21, demo14, demo16, demo17, demo30);
+#data = rbind(data21, data14, data16, data17, data30, dataf21);
+#demo = rbind(demo21, demo14, demo16, demo17, demo30, demof21);
 
+# subsetting to analyse only Feb 12 
 
+data = dataf21;
+demo = demof21;
+
+##--------------------------------------------------------------------------------------------------------
 #---------------------------------------------------------------------------------------------------------------------------
 #
 #  postprocessing
 #
 #---------------------------------------------------------------------------------------------------------------------------
-
+##--------------------------------------------------------------------------------------------------------
 
 data =  merge(data, demo[, c("subject", "date")], by  = "subject");
 data$respcorrect = (data$numcorrect == 4);    # postprocessing
 
-
-##--------------------------------------------------------------------------------------------------------
-##---------------------------------------------------------------------------------------------------------------------------
-##
-##  below are various mandatory exclusion procedures
-##
-##---------------------------------------------------------------------------------------------------------------------------
-##--------------------------------------------------------------------------------------------------------
-
-
-
-#--------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------
 #
-#  exclude the ones at celling
+#  Object-based accuracy (number of objects selected correctly per trial)
 #
-#--------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------
 
 
-celling = subset(demo, demo$accstable == 1 & demo$accunstable == 1);
+avgdata <-aggregate(data$numcorrect, by=list(data$subject, data$condition),  FUN = function(x) c(mean = mean(x), se = sd(x)/sqrt(length(x)) ))
+colnames(avgdata) <- c( "subject", "condition", "acc");
+avgdata$numcorrect = avgdata$acc[,1];
+avgdata$numcorrectSE = avgdata$acc[,2];
+avgdata$precentcorrect = avgdata$numcorrect/4;
+avgdata = avgdata[c(1,2,4,5,6)]
 
-if (length(celling$subject) > 0) {
-   for (i in 1: length(celling$subject)) {
-	   cat("removing celling accuracy ", as.character(celling$subject[i]), demo$accstable[which(demo$subject == celling$subject[i])],  demo$accunstable[which(demo$subject == celling$subject[i])], "\n");
-	   data = subset(data, data$subject != celling$subject[i]);
-	   demo = subset(demo, demo$subject != celling$subject[i]);
-   }
-}
-
-
-#--------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------
 #
-#   identify subjects who clicked at chance, based on stable accuracy  
-#   --- actualy even if they get two trials out of 18 correctly they are already above chance  
+#   apending object-based accuracy measures to demo
 #
-#--------------------------------------------------------------------------------------------------------
-
-sub = demo$subject;
-for (i in 1:length(sub)) {
-	k = demo$numstable[which(demo$subject == sub[i])];
-	n = 18;
-	p = choose(n,k)*(1/70)^k*(69/70)^(n-k);
-	if (p > 0.01) {
-	   cat("clicked at chance", as.character(sub[i]), demo$accstable[ which(demo$subject == sub[i])], p, "\n")
-	   data = subset(data, data$subject != sub[i]);
-	   demo = subset(demo, demo$subject != sub[i]);
-	}
-}
+#-------------------------------------------------------------------------------------------
 
 
-#--------------------------------------------------------------------------------------------------------
-#
-#   exclude subjects who click too fast 
-#   
-#--------------------------------------------------------------------------------------------------------
+objaccstable = subset(avgdata, avgdata$condition=="stable");
+colnames(objaccstable) <- c( "subject", "condition", "objcorrectstable", "objstableSE", "objprecentstable");
+objaccunstable = subset(avgdata, avgdata$condition=="unstable");
+colnames(objaccunstable) <- c( "subject", "condition", "objcorrectunstable", "objunstableSE",  "objprecentunstable");
 
-df2 = data[ , c("trial", "condition", "rt2",  "respcorrect", "subject")]; colnames(df2)[3] <- "rt"; df2$whichball = "2";
-df3 = data[ , c("trial", "condition", "rt3",  "respcorrect", "subject")]; colnames(df3)[3] <- "rt"; df3$whichball = "3";
-df4 = data[ , c("trial", "condition", "rt4",  "respcorrect", "subject")]; colnames(df4)[3] <- "rt"; df4$whichball = "4";
-df = rbind(df2, df3);
-df = rbind(df, df4);
-
-# ggplot(data = df, aes(x = rt, fill = subject) ) + geom_density(alpha = 0.5) + xlim(0, 3000)                             # ok, it looks like there is at least one bad one
-
-aggdata <-aggregate(df$rt, by=list(df$subject), FUN = function(x) c(mean = mean(x), se = sd(x)/sqrt(length(x)) ))
-colnames(aggdata) <- c("subject", "x");
-aggdata$rt = aggdata$x[,1];
-aggdata$SE = aggdata$x[,2];
-
-ggplot(aggdata, aes(x = rt)) + geom_histogram();                                                                        # the bad one stands out at 400 ms
-
-for (i in 1: length(aggdata$rt)) {
-	if ( aggdata$rt[i] < minimal_rt_cutoff ) {
-	  cat("goofball ", as.character(aggdata$subject[i]), demo$accstable[which(demo$subject == aggdata$subject[i])],  demo$accunstable[which(demo$subject == aggdata$subject[i])], "\n");
-	  data = subset(data, data$subject != aggdata$subject[i]);
-	  demo = subset(demo, demo$subject != aggdata$subject[i]);
-	}
-}
+demo =  merge(demo, objaccstable[, c("subject", "objcorrectstable", "objstableSE", "objprecentstable")], by  = "subject");
+demo =  merge(demo, objaccunstable[, c("subject", "objcorrectunstable", "objunstableSE", "objprecentunstable")], by  = "subject");
 
 
 
@@ -203,6 +162,105 @@ for (sub in demo$subject) {
 		demo$numunstable[which(demo$subject == sub)] = sum( subset(data$respcorrect, data$subject == sub & data$condition == "unstable"))
 	}
 }
+
+
+
+##--------------------------------------------------------------------------------------------------------
+##---------------------------------------------------------------------------------------------------------------------------
+##
+##  below are various mandatory exclusion procedures
+##
+##---------------------------------------------------------------------------------------------------------------------------
+##--------------------------------------------------------------------------------------------------------
+
+
+
+#--------------------------------------------------------------------------------------------------------
+#
+#  exclude the ones at celling
+#
+#--------------------------------------------------------------------------------------------------------
+
+
+celling = subset(demo, demo$accstable > 0.9 | demo$accunstable > 0.9);
+
+if (length(celling$subject) > 0) {
+   for (i in 1: length(celling$subject)) {
+	   cat("removing celling accuracy ", as.character(celling$subject[i]), demo$accstable[which(demo$subject == celling$subject[i])],  demo$accunstable[which(demo$subject == celling$subject[i])], "\n");
+	   data = subset(data, data$subject != celling$subject[i]);
+	   demo = subset(demo, demo$subject != celling$subject[i]);
+   }
+}
+
+
+#-------------------------------------------------------------------------------------------
+#
+#   Object-based at-chance exclusion -- this is preferable to trial-based at chance exclusion for Feb 12
+#
+#-------------------------------------------------------------------------------------------
+
+tooBad =  subset(demo, demo$objprecentstable < 0.55);
+cat("Total subjects:", dim(demo)[1], " of which", dim(tooBad)[1],  " below 55 percent accurate \n");
+demo = subset(demo, !( demo$subject %in% tooBad$subject) );
+data = subset(data, !( data$subject %in% tooBad$subject) );
+avgdata = subset(avgdata, !( avgdata$subject %in% tooBad$subject) );
+
+
+
+#--------------------------------------------------------------------------------------------------------
+#
+#   identify subjects who clicked at chance, based on stable accuracy  
+#   --- actualy even if they get two trials out of 18 correctly they are already above chance  
+#
+#   NOTE: does not apply to Feb 12, which did 40 trials, we will exclude them by an object-based measure of chance
+#
+#--------------------------------------------------------------------------------------------------------
+
+sub = subset(demo$subject, demo$date !="12/February/2019");
+for (i in 1:length(sub)) {
+	k = demo$numstable[which(demo$subject == sub[i])];
+	n = 18;
+	p = choose(n,k)*(1/70)^k*(69/70)^(n-k);
+	if (p > 0.01) {
+	   cat("clicked at chance", as.character(demo$date[ which(demo$subject == sub[i])]), as.character(sub[i]), demo$accstable[ which(demo$subject == sub[i])], p, "\n")
+	   data = subset(data, data$subject != sub[i]);
+	   demo = subset(demo, demo$subject != sub[i]);
+	}
+}
+
+
+#--------------------------------------------------------------------------------------------------------
+#
+#   exclude subjects who click too fast 
+#   
+#--------------------------------------------------------------------------------------------------------
+
+df2 = data[ , c("trial", "condition", "rt2",  "respcorrect", "subject")]; colnames(df2)[3] <- "rt"; df2$whichball = "2";
+df3 = data[ , c("trial", "condition", "rt3",  "respcorrect", "subject")]; colnames(df3)[3] <- "rt"; df3$whichball = "3";
+df4 = data[ , c("trial", "condition", "rt4",  "respcorrect", "subject")]; colnames(df4)[3] <- "rt"; df4$whichball = "4";
+df = rbind(df2, df3);
+df = rbind(df, df4);
+
+# ggplot(data = df, aes(x = rt, fill = subject) ) + geom_density(alpha = 0.5) + xlim(0, 3000)                             # ok, it looks like there is at least one bad one
+
+aggdata <-aggregate(df$rt, by=list(df$subject), FUN = function(x) c(mean = mean(x), se = sd(x)/sqrt(length(x)) ))
+colnames(aggdata) <- c("subject", "x");
+aggdata$rt = aggdata$x[,1];
+aggdata$SE = aggdata$x[,2];
+
+ggplot(aggdata, aes(x = rt)) + geom_histogram();                                                                        # the bad one stands out at 400 ms
+
+for (i in 1: length(aggdata$rt)) {
+	if ( aggdata$rt[i] < minimal_rt_cutoff ) {
+	  cat("goofball ", as.character(demo$date[ which(demo$subject == sub[i])]), as.character(aggdata$subject[i]), demo$accstable[which(demo$subject == aggdata$subject[i])],  demo$accunstable[which(demo$subject == aggdata$subject[i])], "\n");
+	  data = subset(data, data$subject != aggdata$subject[i]);
+	  demo = subset(demo, demo$subject != aggdata$subject[i]);
+	}
+}
+
+
+
+
 
 ##--------------------------------------------------------------------------------------------------------
 ##--------------------------------------------------------------------------------------------------------
@@ -333,16 +391,30 @@ demo = subset(demo, demo$subject !="S55878414");
 data = subset(data, data$subject != "S20771601"); # ??
 demo = subset(demo, demo$subject != "S20771601");
 
+
 #--------------------------------------------------------------------------------------------------------
 #
-#   Plot accuracy for each subject with error bars, before excluding any optional exclusions
+#   Feb 12
+#   
+#--------------------------------------------------------------------------------------------------------
+
+data = subset(data, data$subject !="S64814829");
+demo = subset(demo, demo$subject !="S64814829"); # incoherent
+
+
+data = subset(data, data$subject !="S18583989"); # incoherent
+demo = subset(demo, demo$subject !="S18583989");
+
+#--------------------------------------------------------------------------------------------------------
+#
+#   Plot trial-based accuracy for each subject with error bars, before excluding any optional exclusions
 #
 #--------------------------------------------------------------------------------------------------------
 
 
-#d = subset(data, data$date == "11/January/2019");    # subset the data, if looking at only a specific date 
+d = subset(data, data$date == "12/February/2019");    # subset the data, if looking at only a specific date 
 
-d = data;
+#d = data;
 
 aggdata <-aggregate(d$respcorrect, by=list(d$condition, d$subject), FUN = function(x) c(mean = mean(x), se = sd(x)/sqrt(length(x)) ))
 colnames(aggdata) <- c("condition", "subject", "acc");
@@ -355,6 +427,29 @@ tempdemo = merge(tempdemo, subset(aggdata[ , c("subject", "accuracy", "SE")], ag
 colnames(tempdemo) <- c("subject", "accstable", "SEstable", "accunstable", "SEunstable");
 
 ggplot(tempdemo, aes(x = accstable, y = accunstable)) + geom_point()  + xlim(0,1) + ylim(0,1) + geom_vline(xintercept = minimal_accuracy_cutoff, color="blue") + geom_abline(intercept = 0, slope = 1, color="red", linetype="dashed") + geom_errorbar(aes(ymin = accunstable-SEunstable, ymax= accunstable + SEunstable)) + xlab("Accuracy, stable condition")+ ylab("Accuracy, unstable condition")
+
+
+#--------------------------------------------------------------------------------------------------------
+#
+#   Plot object-based accuracy for each subject with error bars
+#
+#--------------------------------------------------------------------------------------------------------
+
+ggplot(demo, aes(x = objcorrectstable, y = objcorrectunstable)) + geom_point()  + xlim(2,4) + ylim(2,4) + geom_vline(xintercept = 3.6, color="blue") + geom_hline(yintercept = 3.6, color="blue") + geom_abline(intercept = 0, slope = 1, color="red", linetype="dashed") + geom_errorbar(aes(ymin = objcorrectunstable-objunstableSE, ymax= objcorrectunstable + objunstableSE)) + xlab("Accuracy, stable condition")+ ylab("Accuracy, unstable condition")
+
+
+# without excluding subjects at ceiling
+t = t.test(demo$objcorrectstable, demo$objcorrectunstable, paired=TRUE); 
+
+
+#--------------------------------------------------------------------------------------------------------
+#
+#   Notice this very odd thing - some subjects take a really long time to get through the MOT task -- what are they doing?
+#   But data and debriefing looks normal
+#
+#--------------------------------------------------------------------------------------------------------
+
+ggplot(demo, aes(x=durationMOT ) ) + geom_histogram()
 
 
 ##--------------------------------------------------------------------------------------------------------
@@ -377,32 +472,18 @@ lousy = subset(demo, demo$accstable <= minimal_accuracy_cutoff);
 
 if (length(lousy$subject) > 0) {
   for (i in 1: length(lousy$subject)) {
-	cat("removing poor accuracy ", as.character(lousy$subject[i]), demo$accstable[which(demo$subject == lousy$subject[i])],  demo$accunstable[which(demo$subject == lousy$subject[i])], "\n");
+	cat("removing poor accuracy ", as.character(demo$date[ which(demo$subject == sub[i])]), as.character(lousy$subject[i]), demo$accstable[which(demo$subject == lousy$subject[i])],  demo$accunstable[which(demo$subject == lousy$subject[i])], "\n");
 	data = subset(data, data$subject != lousy$subject[i]);
 	demo = subset(demo, demo$subject != lousy$subject[i]);
   }
 }
 
-#-------------------------------------------------------------------------------------------
-#
-#  Accuracy analysis based on object-based accuracy (number of objects selected correctly per trial)
-#
-#-------------------------------------------------------------------------------------------
-
 
 #-------------------------------------------------------------------------------------------
 #
-#   Removing participants who are too close to celling (or chance) on their object-based accuracy measures
+#   For object-based accuracy analysis we need to remove participants who are above 90% correct on their object-based accuracy measures
 #
 #-------------------------------------------------------------------------------------------
-
-#d <- data for testing
-#dem <- demo
-#d = subset(data, data$date == "30/January/2019") if checking subsets
-
-avgdata <-aggregate(data, by=list(data$subject, data$condition), FUN = function(x) c(mean = mean(x) ))
-avgdata <- avgdata[ c(1, 2, 7) ] # the columns we're interested in
-colnames(avgdata) <- c( "subject", "condition", "numcorrect");
 
 # MARTA: commented out, because, 
 # we want to remove folks who may be at celling, or at chance, not based on how good they are relating to other subjects, right?
@@ -412,33 +493,15 @@ colnames(avgdata) <- c( "subject", "condition", "numcorrect");
 # tooGood = subset(avgdata, avgdata$numcorrect > percent_cap); # list of subjects whose scores in either condition are above the 95th percentile
 # tooBad = subset(avgdata, avgdata$numcorrect < percent_cap_low); #list of subjects whose scores in either condition are below the 5th percentile
 
-avgdata$precentcorrect = avgdata$numcorrect/4; 
-tooGood = subset(avgdata, avgdata$precentcorrect > 0.9);
-tooBad =  subset(avgdata, avgdata$precentcorrect < 0.55);
+ 
+tooGood = subset(demo, demo$objprecentstable > 0.9 | demo$objprecentunstable > 0.9);
 
+cat("Total subjects:", dim(demo)[1], " of which",  dim(tooGood)[1], " are above 90 percent accurate on object-based acuracy\n");
 
-cat("Total subjects:", dim(avgdata)[1], " of which",  dim(tooGood)[1], " are above 90 percent accurate on object-based acuracy, and ", dim(tooBad)[1],  " below 55 percent accurate \n");
 demo = subset(demo, !( demo$subject %in% tooGood$subject) );
-demo = subset(demo, !( demo$subject %in% tooBad$subject) );
 data = subset(data, !( data$subject %in% tooGood$subject) );
-data = subset(data, !( data$subject %in% tooBad$subject) );
-avgdata = subset(avgdata, !( avgdata$subject %in% tooBad$subject) );
 avgdata = subset(avgdata, !( avgdata$subject %in% tooGood$subject) );
 
-#-------------------------------------------------------------------------------------------
-#
-#   apending object-based accuracy measures to demo
-#
-#-------------------------------------------------------------------------------------------
-
-
-objaccstable = subset(avgdata, avgdata$condition=="stable");
-colnames(objaccstable) <- c( "subject", "condition", "objcorrectstable", "objprecentstable");
-objaccunstable = subset(avgdata, avgdata$condition=="unstable");
-colnames(objaccunstable) <- c( "subject", "condition", "objcorrectunstable", "objprecentunstable");
-
-demo =  merge(demo, objaccstable[, c("subject", "objcorrectstable", "objprecentstable")], by  = "subject");
-demo =  merge(demo, objaccunstable[, c("subject", "objcorrectunstable", "objprecentunstable")], by  = "subject");
 
 ##--------------------------------------------------------------------------------------------------------
 ##--------------------------------------------------------------------------------------------------------
@@ -459,8 +522,8 @@ cat ( length(demo$subject), "subjects in the analysis");
 #--------------------------------------------------------------------------------------------------------
 
 # subset the data if looking at a specific date
-#  t.test( subset(demo$accstable, demo$date == "09/January/2019"), subset(demo$accunstable, demo$date == "09/January/2019"), paired=TRUE);
-#  t.test( subset(demo$accstable, demo$date == "11/January/2019"), subset(demo$accunstable, demo$date == "11/January/2019"), paired=TRUE);
+t.test( subset(demo$accstable, demo$date == "12/February/2019"), subset(demo$accunstable, demo$date == "12/February/2019"), paired=TRUE);
+t.test( subset(demo$accstable, demo$date == "30/January/2019"), subset(demo$accunstable, demo$date == "30/January/2019"), paired=TRUE);
 
 
 t = t.test(demo$accstable, demo$accunstable, paired=TRUE);                                 #  Withis-subject t-test for accuracy in the stable and unstable condition
@@ -498,14 +561,21 @@ t = t.test(demo142130$objcorrectstable, demo142130$objcorrectunstable, paired=TR
 t
 power.t.test(delta=t$estimate, sd = sd(demo142130$objcorrectstable - demo142130$objcorrectunstable), sig.level=0.05, power = 0.8, type = "paired")  
 
+
+demo12 = subset(demo, demo$date == '12/February/2019' )    # 0.067, p-value = 0.1, df = 40, but n = 117
+t = t.test(demo12$objcorrectstable, demo12 $objcorrectunstable, paired=TRUE); 
+t
+power.t.test(delta=t$estimate, sd = sd(demo12 $objcorrectstable - demo12 $objcorrectunstable), sig.level=0.05, power = 0.8, type = "paired")  
+
+
 #--------------------------------------------------------------------------------------------------------
 #
 #   is there an effect for the first 30 trials? Trial-based measures
 #
 #--------------------------------------------------------------------------------------------------------
 
-n = 30;                                       
-d = subset(data, data$trial <= n);
+n = 36;                                       
+d = subset(data, data$trial <= n );
 
 aggdata <-aggregate(d$respcorrect, by=list(d$condition, d$subject), FUN = function(x) c(mean = mean(x), se = sd(x)/sqrt(length(x)) ))
 colnames(aggdata) <- c("condition", "subject", "acc");
@@ -570,6 +640,15 @@ demo142130 = subset(tempDemo, tempDemo $date == '14/January/2019' | tempDemo $da
 t = t.test(demo142130$objcorrectstable, demo142130$objcorrectunstable, paired=TRUE); 
 t
 power.t.test(delta=t$estimate, sd = sd(demo142130$objcorrectstable - demo142130$objcorrectunstable), sig.level=0.05, power = 0.8, type = "paired")  
+
+
+
+
+demo12 = subset(tempDemo, tempDemo $date == '12/February/2019'  )    # 0.098, p-value = 0.04, df = 40, but n = 49
+t = t.test(demo12$objcorrectstable, demo12 $objcorrectunstable, paired=TRUE); 
+t
+power.t.test(delta=t$estimate, sd = sd(demo12 $objcorrectstable - demo12 $objcorrectunstable), sig.level=0.05, power = 0.8, type = "paired")  
+
 
 
 #--------------------------------------------------------------------------------------------------------
