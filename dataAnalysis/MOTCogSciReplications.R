@@ -78,13 +78,17 @@ demof21 = read.csv( paste(main_path, 'MOTFeb12demo.csv', sep ='') , sep = "\t", 
 #---------------------------------------------------------------------------------------------------------------------------
 
 
-#data = rbind(data21, data14, data16, data17, data30, dataf21);
-#demo = rbind(demo21, demo14, demo16, demo17, demo30, demof21);
+data = rbind( data14, data16, data17, data21, data30, dataf21);
+demo = rbind( demo14, demo16, demo17, demo21, demo30, demof21);
+data = subset(data, data$trial <= 36);
+
+#data = rbind(data21, data14, data30);
+#demo = rbind(demo21, demo14, demo30);
 
 # subsetting to analyse only Feb 12 
 
-data = dataf21;
-demo = demof21;
+#data = dataf21;  #subset(dataf21, data$trial <= 30);
+#demo = demof21;
 
 ##--------------------------------------------------------------------------------------------------------
 #---------------------------------------------------------------------------------------------------------------------------
@@ -412,9 +416,9 @@ demo = subset(demo, demo$subject !="S18583989");
 #--------------------------------------------------------------------------------------------------------
 
 
-d = subset(data, data$date == "12/February/2019");    # subset the data, if looking at only a specific date 
+#d = subset(data, data$date == "12/February/2019");    # subset the data, if looking at only a specific date 
 
-#d = data;
+d = data;
 
 aggdata <-aggregate(d$respcorrect, by=list(d$condition, d$subject), FUN = function(x) c(mean = mean(x), se = sd(x)/sqrt(length(x)) ))
 colnames(aggdata) <- c("condition", "subject", "acc");
@@ -675,12 +679,16 @@ summary(res);
 
 data$bin = 5
 data$bin[which(data$trial <= 6 )] =  1;
-data$bin[which(data$trial > 30 )] =  6;
+data$bin[which(data$trial > 36)] =  7;
+data$bin[which(data$trial > 30 & data$trial <= 36)] =  6;
 data$bin[which(data$trial >= 7  & data$trial < 13 )] = 2;
 data$bin[which(data$trial >= 13  & data$trial < 19 )] = 3;
 data$bin[which(data$trial >= 19  & data$trial < 25 )] = 4;
 
-aggdata <-aggregate(data$respcorrect, by=list(data$bin, data$condition),  FUN = function(x) c(mean = mean(x), se = sd(x)/sqrt(length(x)) ))
+d =  subset(data, data$date == '14/January/2019' | data$date == '21/January/2019' | data$date == '30/January/2019' )   
+
+
+aggdata <-aggregate(d$respcorrect, by=list(d$bin, d$condition),  FUN = function(x) c(mean = mean(x), se = sd(x)/sqrt(length(x)) ))
 colnames(aggdata) <- c("bin", "condition", "acc");
 aggdata$accuracy = aggdata$acc[,1];
 aggdata$SE = aggdata$acc[,2];
@@ -700,19 +708,20 @@ TukeyHSD(aov(res))
 
 #--------------------------------------------------------------------------------------------------------
 #
-#   accuracy for each bin by condition -- Object based -- and only Jan 14, 21, 30 --- SEM overlap...
+#   accuracy for each bin by condition -- Object based -- 
 #
 #--------------------------------------------------------------------------------------------------------
 
 data$bin = 5
 data$bin[which(data$trial <= 6 )] =  1;
-data$bin[which(data$trial > 30 )] =  6;
+data$bin[which(data$trial > 36)] =  7;
+data$bin[which(data$trial > 30 & data$trial <= 36)] =  6;
 data$bin[which(data$trial >= 7  & data$trial < 13 )] = 2;
 data$bin[which(data$trial >= 13  & data$trial < 19 )] = 3;
 data$bin[which(data$trial >= 19  & data$trial < 25 )] = 4;
 
 
-d = subset(data, data$date == '14/January/2019' | data$date == '21/January/2019' | data$date == '30/January/2019' )   
+d =  subset(data, data$date == '14/January/2019' | data$date == '21/January/2019' | data$date == '30/January/2019' )   
 
 avgdata <-aggregate(d$numcorrect, by=list(d$bin, d$condition), FUN = function(x) c(mean = mean(x), se = sd(x)/sqrt(length(x)) ))
 colnames(avgdata) <- c( "bin", "condition", "acc");
@@ -784,9 +793,4 @@ ggplot(data = df, aes(x = rt, fill = whichball) ) + geom_density(alpha = 0.5) + 
 ggplot(data = df, aes(x = rt, fill = condition) ) + geom_density(alpha = 0.5) + xlim(0, 3000)
 
 
-demoJan9 =  demo;
-dataJan9 = data;
-
-demoJan11 =  demo;
-dataJan11 = data;
 
